@@ -283,6 +283,7 @@ class MessageGateway:
             if cmd.command_type == CommandType.GET_MEASUREMENTS:
                 measurements.extend(self._get_component_measurements(cmd.component))
             elif cmd.command_type == CommandType.SET_DISCHARGE_POWER:
+                # Add power measurement for component
                 measurements.append(Measurement(
                     component=cmd.component,
                     measurement_type=MeasurementType.POWER,
@@ -290,7 +291,23 @@ class MessageGateway:
                     unit="W",
                     timestamp=datetime.utcnow().isoformat() + "Z",
                 ))
+                # Always add battery SOC during discharge
+                if cmd.component == ComponentType.BATTERY:
+                    measurements.extend(self._get_component_measurements(ComponentType.BATTERY))
+            elif cmd.command_type == CommandType.SET_CHARGE_POWER:
+                measurements.append(Measurement(
+                    component=cmd.component,
+                    measurement_type=MeasurementType.POWER,
+                    value=cmd.value * 0.95,  # 95% efficiency
+                    unit="W",
+                    timestamp=datetime.utcnow().isoformat() + "Z",
+                ))
+                # Always add battery SOC during charge
+                if cmd.component == ComponentType.BATTERY:
+                    measurements.extend(self._get_component_measurements(ComponentType.BATTERY))
 
+        # Always get controller measurements
+        measurements.extend(self._get_component_measurements(ComponentType.CONTROLLER))
         return measurements
 
     def _get_component_measurements(self, component: ComponentType) -> List[Measurement]:
@@ -348,7 +365,13 @@ class MessageGateway:
         measurements: List[Measurement]
     ) -> MicrogridResponse:
         """Build response message for grid backend."""
-        measurements_dict = [asdict(m) for m in measurements]
+        measurements_dict = []
+        for m in measurements:
+            m_dict = asdict(m)
+            # Convert enum to string value
+            m_dict["component"] = m.component.value
+            m_dict["measurement_type"] = m.measurement_type.value
+            measurements_dict.append(m_dict)
         
         battery_soc = next(
             (m.value for m in measurements 

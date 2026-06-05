@@ -75,8 +75,8 @@ class TestKIOEInterface(unittest.TestCase):
         measurement_types = {m["measurement_type"] for m in response.measurements}
         
         # Verify key measurement types are present
-        self.assertIn(MeasurementType.SOC.value, measurement_types)
-        self.assertIn(MeasurementType.FREQUENCY.value, measurement_types)
+        self.assertIn("state_of_charge", measurement_types)
+        self.assertIn("frequency", measurement_types)
 
     def test_reactive_power_command(self):
         """Test reactive power (Q) control for grid support."""
